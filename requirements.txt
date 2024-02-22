@@ -10,3 +10,4 @@ Pillow
 Flask-Reuploaded
 gunicorn
 flask_moment
+email_validator
