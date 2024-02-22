@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_uploads import UploadSet, configure_uploads, IMAGES
-from .extensions import db, login_manager, bcrypt, migrate, socketio, Moment
+from extensions import db, login_manager, bcrypt, migrate, socketio, Moment
 import os
 
 
