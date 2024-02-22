@@ -1,0 +1,81 @@
+{% block title %}
+    <title>Groups</title>
+{% endblock %}
+
+{% extends 'index.html' %}
+
+{% block content %}
+    <div class="ui container">
+        <h2 class="ui header">Groups</h2>
+
+        <!-- Display flashed messages -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for message in messages %}
+                        <li class="flash-message">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <div class="ui placeholder segment">
+            <div class="ui two column very relaxed stackable grid">
+                <div class="column">
+                    <form method="POST" action="{{ url_for('groups') }}">
+                        {{ create_form.csrf_token }}
+                        <div class="ui form">
+                            {{ create_form.name(placeholder = 'Group Name') }}
+                            <button type="submit" class="ui blue button">Create Group</button>
+                        </div>
+
+                    </form>
+                </div>
+                <div class="middle aligned column">
+                    <form method="POST" action="{{ url_for('groups') }}">
+                        {{ join_form.csrf_token }}
+                        <div class="ui form">
+                            {{ join_form.group_name(placeholder = 'Group Name') }}
+                            <button type="submit" class="ui green button">Join Group</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="ui vertical divider">
+                Or
+            </div>
+        </div>
+
+        <hr>
+        <h3 class="ui header">Your Created Groups</h3>
+        <div class="ui inverted padded container segment">
+
+            <div class="ui link cards">
+
+                {% for group in created_groups %}
+                    <div class="card">
+                        <div class="content">
+                            <div class="header">{{ group.name }}</div>
+                            <div class="meta">
+                                <a>x members</a>
+                            </div>
+                            <div class="description">
+                                Group Bio
+                            </div>
+                        </div>
+                        <div class="extra content center aligned">
+                            {% if group.admin == current_user %} {# Check if current user is group admin #}
+                                <form method="POST" action="{{ url_for('delete_group', group_id=group.id) }}"
+                                      class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm ml-2">Delete</button>
+                                </form>
+                            {% endif %}                    </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <!-- Display Created Groups -->
+
+
+    </div>
+{% endblock %}

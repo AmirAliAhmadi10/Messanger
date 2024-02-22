@@ -1,0 +1,154 @@
+{% block title %}
+    <title>Private Chat: {{ recipient.first_name }}</title>
+{% endblock %}
+
+
+{% extends 'index.html' %}
+
+{% block content %}
+    {% block scripts %}
+        {{ moment.include_moment() }}
+    {% endblock %}
+    <div style="margin-top:20px;" class="ui container">
+        <a href="{{ url_for('chats') }}">
+            <button class="ui labeled icon button">
+                <i class="left arrow icon"></i>
+                Return To Chats
+            </button>
+        </a>
+    </div>
+    <div class="ui container segment">
+
+        <img src="{{ url_for('static', filename='profile_pics/' + recipient.profile_image) }}"
+             class="ui centered avatar small circular image" alt="Profile Picture">
+        <h2 class="ui center aligned header">
+
+            {{ recipient.first_name +" "+ recipient.last_name }}</h2>
+
+        <div class="ui feed" style="overflow-y:auto; max-height: 450px;">
+            <ul id="private-chat-messages" class="list-group">
+                <!-- Messages will be appended here dynamically -->
+            </ul>
+        </div>
+    </div>
+    <div class="ui center aligned container segment">
+        <form method="POST" id="private-chat-form" class="ui fluid form">
+            {{ form.csrf_token }}
+            <div class="ui right labeled input">
+                <input type="text" name="content" class="form-control form-control-lg">
+                <button type="submit" id="send-private-message" class="ui teal label">Send Message</button>
+            </div>
+        </form>
+    </div>
+
+
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var socket = io.connect('//' + document.domain + ':' + location.port);
+
+            // Function to add a new private message to the UI
+            function addPrivateMessage(data) {
+                var newMessageElement = document.createElement('li');
+                newMessageElement.classList.add('list-group-item');
+                newMessageElement.id = 'message_' + data.id;
+
+                // Check if the message is from the current user
+                var isCurrentUser = data.current_username === '{{ current_user.username }}';
+                var displayName = isCurrentUser ? 'You' : data.recipient_first_name + ' ' + data.recipient_last_name;
+                newMessageElement.innerHTML = `
+            <div class="ui secondary segment" style="margin-right:10px;">
+                 <div class="item">
+                      <div class="content">
+                           <div class="ui label"><i class="address card outline icon"></i>
+                                <a class="header">${displayName}</a>
+                           </div>
+                           <div class="ui label right floated">
+                                <i class="clock icon"></i>
+                                ${moment(data.timestamp).calendar()}
+                           </div>
+			               <div class="ui raised segment">
+                                <div class="description">
+                                    <p>${data.content}</p>
+                                </div>
+                           </div>
+
+
+
+                           <br>
+
+                           <div class="extra">
+                            ${isCurrentUser ? `<button class="ui orange basic button mini right floated" onclick="deletePrivateMessage(${data.id})"><i class="trash icon"></i><span>Delete</span></button><br><br>` : ''}
+                            </div>
+                      </div>
+                 </div>
+             </div>
+            `;
+
+                document.getElementById('private-chat-messages').appendChild(newMessageElement);
+            }
+
+            // Listen for new_private_message events and display the messages
+            socket.on('new_private_message', function (data) {
+                addPrivateMessage(data);
+            });
+
+            // Handle form submission and send private messages
+            function sendPrivateMessage(event) {
+                event.preventDefault(); // Prevent the default form submission
+
+                var messageContent = document.querySelector('input[name="content"]').value;
+
+                var messageData = {
+                    username: '{{ current_user.username }}',
+                    content: messageContent,
+                    recipient_username: '{{ recipient_username }}',
+                    timestamp: new Date().toISOString()
+                };
+
+                socket.emit('new_private_message', messageData);
+
+                document.getElementById('private-chat-form').submit();
+            }
+
+            // Attach the sendPrivateMessage function to the form's submit event
+            document.getElementById('private-chat-form').addEventListener('submit', sendPrivateMessage);
+
+            // Attach the sendPrivateMessage function to the button click event
+            document.getElementById('send-private-message').addEventListener('click', sendPrivateMessage);
+
+            // Display existing private messages when the page loads
+            var existingMessages = {{ private_messages | tojson }};
+            existingMessages.forEach(function (message) {
+                addPrivateMessage(message);
+            });
+        });
+
+        function deletePrivateMessage(messageId) {
+            // Make a request to the server to delete the message
+            fetch(`/delete_message/${messageId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.message);
+
+                    // Remove the message element from the UI immediately
+                    var messageElement = document.getElementById('message_' + messageId);
+                    if (messageElement) {
+                        messageElement.remove();
+                    } else {
+                        console.warn('Message element not found:', messageId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+    </script>
+{% endblock %}
+

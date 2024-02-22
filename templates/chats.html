@@ -1,0 +1,54 @@
+{% block title %}
+    <title>Chats</title>
+{% endblock %}
+
+{% extends 'index.html' %}
+
+{% block content %}
+    <div class="ui inverted padded container segment">
+        <div class="ui link cards">
+            {% for chat in private_chats %}
+                <div class="card">
+                    <div class="image">
+                        <img src="{{ url_for('static', filename='profile_pics/' + chat.profile_image) }}">
+                    </div>
+                    <div class="content">
+                        <div class="header">{{ chat.first_name +" "+ chat.last_name }}</div>
+                        <div class="meta">
+                            <a>@{{ chat.username }}</a>
+                        </div>
+                        <div class="description">
+                            Bio
+                        </div>
+                    </div>
+                    <div class="extra content center aligned">
+                        <a href="{{ url_for('private_chat', recipient_username=chat.username) }}"
+                           class="ui button">Chat</a>
+                    </div>
+                </div>
+            {% endfor %}
+
+        </div>
+    </div>
+    <div class="ui inverted padded container segment">
+        <div class="ui link cards">
+
+            {% for group in joined_groups %}
+                <div class="card">
+                 <div class="content">
+                        <div class="header">{{ group.name }}</div>
+                        <div class="meta">
+                            <a>x members</a>
+                        </div>
+                        <div class="description">
+                            Group Bio
+                        </div>
+                    </div>
+                    <div class="extra content center aligned">
+                        <a href="{{ url_for('group_chat', group_id=group.id) }}" class="ui button">Open Group</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

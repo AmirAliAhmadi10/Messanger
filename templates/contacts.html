@@ -1,0 +1,68 @@
+{% block title %}
+    <title>Contacts</title>
+{% endblock %}
+
+{% extends 'index.html' %}
+
+{% block content %}
+    <div class="ui container">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="ui message">
+                    <i class="close icon"></i>
+                    {% for message in messages %}
+                        <p class="flash-message">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="ui inverted container segment">
+            <h2 class="ui header">Add Contact</h2>
+            <form method="POST">
+                {{ form.csrf_token }}
+                {{ form.hidden_tag() }}
+                <div class="form-group">
+                    {{ form.username.label(class="form-control-label") }}
+                    {{ form.username(class="form-control") }}
+                </div>
+                <button type="submit" class="ui green button">Add Contact</button>
+            </form>
+        </div>
+        <div class="ui inverted padded container segment">
+            <h2 class="ui header">Contacts</h2>
+            <div class="ui link cards">
+                {% for contact in current_user.contacts %}
+                    <div class="card">
+                        <div class="image">
+                            <img src="{{ url_for('static', filename='profile_pics/' + contact.profile_image) }}">
+                        </div>
+                        <div class="content">
+                            <div class="header">{{ contact.full_name }}</div>
+                            <div class="meta">
+                                <a>@{{ contact.username }}</a>
+                            </div>
+                            <div class="description">
+                                Bio
+                            </div>
+                        </div>
+                        <div class="extra content center aligned">
+                            <div class="ui buttons" role="group" aria-label="Contact Actions">
+                                <a href="{{ url_for('private_chat', recipient_username=contact.username) }}"
+                                   class="ui blue button">Chat</a>
+
+                                <form method="POST" action="{{ url_for('delete_contact', contact_id=contact.id) }}">
+                                    {{ form.csrf_token }}
+                                    {{ form.hidden_tag() }}
+                                    <button type="submit" class="ui red button">Delete</button>
+                                </form>
+                            </div>
+
+                        </div>
+                    </div>
+                {% endfor %}
+
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% block title %}
+    <title>Group: {{ group.name }}</title>
+{% endblock %}
+
+{% extends 'index.html' %}
+
+{% block content %}
+    {% block scripts %}
+        {{ moment.include_moment() }}
+    {% endblock %}
+    <div style="margin-top:20px;" class="ui container">
+        <a href="{{ url_for('chats') }}">
+            <button class="ui labeled icon button">
+                <i class="left arrow icon"></i>
+                Return To Chats
+            </button>
+        </a>
+        <a href="{{ url_for('group_profile', group_id=group.id) }}">
+            <button class="ui labeled icon button">
+                <i class="address card icon"></i>
+                Group Profile
+            </button>
+        </a>
+
+        <a href="{{ url_for('meeting', room_name = group.name) }}">
+            <button class="ui labeled icon button">
+                <i class="handshake icon"></i>
+                Meeting
+            </button>
+        </a>
+
+    </div>
+    <div class="ui container segment">
+        <h2>Group Chat: {{ group.name }}</h2>
+        <div class="ui feed" style="overflow-y:auto; max-height: 450px;">
+            <ul id="group-chat-messages" class="list-group">
+                <!-- Messages will be appended here dynamically -->
+            </ul>
+        </div>
+    </div>
+    <div class="ui container segment">
+        <form method="POST" id="group-chat-form" class="ui fluid form">
+            {{ form.csrf_token }}
+            <div class="ui right labeled input">
+                <input type="text" name="content">
+                <button type="submit" id="send-group-message" class="ui teal label">Send Message</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var socket = io.connect('//' + document.domain + ':' + location.port);
+
+            function addGroupMessage(data) {
+                var newMessageElement = document.createElement('li');
+                newMessageElement.classList.add('list-group-item');
+                newMessageElement.id = 'message_' + data.id;
+
+                var isCurrentUser = data.current_username === '{{ current_user.username }}';
+                var displayName = isCurrentUser ? 'You' : data.sender_first_name + ' ' + data.sender_last_name;
+
+                newMessageElement.innerHTML = `
+            <div class="ui secondary segment" style="margin-right:10px;">
+                        <div class="item">
+                        <div class="content">
+
+
+
+                                <div class="ui label"><i class="address card outline icon"></i>
+
+			                    <a class="header">${displayName}</a> sent
+                                </div>
+
+                                <div class="ui label"><i class="clock icon"></i>${moment(data.timestamp).calendar()}</div>
+
+			               <div class="ui raised segment">
+                          <div class="description">
+
+                            <p>${data.content}</p>
+                          </div>
+                           </div>
+
+                           <br>
+
+                          <div class="extra">
+                            ${isCurrentUser ? `<button class="ui orange basic button mini right floated" onclick="deleteGroupMessage(${data.id})"><i class="trash icon"></i><span>Delete</span></button><br><br>` : ''}
+
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+            `;
+
+                document.getElementById('group-chat-messages').appendChild(newMessageElement);
+            }
+
+            socket.on('new_group_message', function (data) {
+                addGroupMessage(data);
+            });
+
+            function sendGroupMessage(event) {
+                event.preventDefault();
+
+                var messageContent = document.querySelector('input[name="content"]').value;
+
+                var messageData = {
+                    username: '{{ current_user.username }}',
+                    content: messageContent,
+                    group_id: '{{ group.id }}',
+                    timestamp: new Date().toISOString()
+                };
+
+                socket.emit('new_group_message', messageData);
+
+                document.getElementById('group-chat-form').submit();
+            }
+
+
+            document.getElementById('group-chat-form').addEventListener('submit', sendGroupMessage);
+            document.getElementById('send-group-message').addEventListener('click', sendGroupMessage);
+
+            var existingMessages = {{ group_messages | tojson | safe }};
+            existingMessages.forEach(function (message) {
+                addGroupMessage(message);
+            });
+
+        });
+
+        function deleteGroupMessage(messageId) {
+            fetch(`/delete_message/${messageId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.message);
+                    var messageElement = document.getElementById('message_' + messageId);
+
+                    if (messageElement) {
+                        messageElement.remove();
+                    } else {
+                        console.warn('Message element not found:', messageId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+    </script>
+{% endblock %}

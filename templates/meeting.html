@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Meeting: {{ room_name }}</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.3/dist/semantic.min.css">
+    <script src='https://8x8.vc/vpaas-magic-cookie-287f77db606949a6826748ddc7cf4d04/external_api.js' async></script>
+    <style>html, body, #jaas-container {
+        height: 100%;
+    }</style>
+    <script type="text/javascript">
+        window.onload = () => {
+            const api = new JitsiMeetExternalAPI("8x8.vc", {
+                roomName: "vpaas-magic-cookie-287f77db606949a6826748ddc7cf4d04/{{ room_name }}",
+                parentNode: document.querySelector('#jaas-container'),
+                jwt: "{{ token }}"
+            });
+        }
+    </script>
+</head>
+<body>
+<a href="{{ url_for('start_meeting') }}">
+    <button class="ui labeled icon button">
+        <i class="left arrow icon"></i>
+        Return
+    </button>
+</a>
+<div id="jaas-container"/>
+</body>
+</html>

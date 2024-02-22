@@ -1,0 +1,50 @@
+{% block title %}
+    <title>Login</title>
+{% endblock %}
+
+{% extends 'index.html' %}
+
+{% block content %}
+    <div class="container mt-5">
+        <!-- Display flashed messages -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="ui message">
+                    <i class="close icon"></i>
+                    {% for message in messages %}
+                        <p class="flash-message">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        {% if current_user.is_authenticated %}
+            <p>You are already logged in. <a href="{{ url_for('logout') }}">Logout</a>.</p>
+            <a href="{{ url_for('index') }}">Go Home</a>
+        {% else %}
+            <div class="ui attached message">
+                <div class="header">
+                    Welcome back!
+                </div>
+                <p>Fill out the form below to Login</p>
+            </div>
+
+            <form method="post" action="" class="ui form attached fluid segment">
+                {{ form.csrf_token }}
+                <div class="field">
+                    <label for="username">Username</label>
+                    {{ form.username(class="form-control") }}
+                </div>
+                <div class="field">
+                    <label for="password">Password</label>
+                    {{ form.password(class="form-control") }}
+                </div>
+                <button type="submit" class="ui button teal">Login</button>
+            </form>
+            <div class="ui bottom attached warning message">
+                <i class="icon help"></i>
+                Don't have an account? <a href="{{ url_for('register') }}">Register</a> here.
+            </div>
+
+        {% endif %}
+    </div>
+{% endblock %}

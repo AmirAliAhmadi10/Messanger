@@ -1,0 +1,64 @@
+{% extends 'index.html' %}
+
+{% block title %}
+    <title>Group Profile: {{ group.name }}</title>
+{% endblock %}
+
+{% block content %}
+    <div class="ui inverted padded container segment">
+        <h2>Group Profile: {{ group.name }}</h2>
+
+        <h3>Members:</h3>
+        <div class="ui inverted feed">
+            {% for member in group.members %}
+                <div class="event">
+                    <div class="label">
+                        <img src="{{ url_for('static', filename='profile_pics/' + member.profile_image) }}" alt="avatar">
+                    </div>
+                    <div class="content">
+                        <div class="date">
+                            {% if member.id == group.owner_id %}
+                                (Owner)
+                            {% elif member.id in group.admin_members %}
+                                (Admin)
+                            {% else %}
+                                (Member)
+                            {% endif %}
+                        </div>
+                        <div class="summary">
+                            {{ member.first_name +" "+ member.last_name }}
+                        </div>
+                        <div class="ui buttons">
+                            {% if current_user.id == group.owner_id and member.id != current_user.id %}
+                                {% if member.id not in group.admin_members %}
+                                    <form method="POST"
+                                          action="{{ url_for('promote_admin', group_id=group.id, user_id=member.id) }}">
+                                        <button type="submit" class="ui inverted tiny button green">Promote to Admin
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <form method="POST"
+                                          action="{{ url_for('revoke_admin', group_id=group.id, user_id=member.id) }}">
+                                        <button type="submit" class="ui inverted tiny button yellow">Revoke Admin
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            {% endif %}
+                            {% if current_user.id in group.admin_members and member.id not in group.admin_members and member.id != current_user.id %}
+                                <form method="POST"
+                                      action="{{ url_for('remove_member', group_id=group.id, user_id=member.id) }}">
+                                    <button type="submit" class="ui inverted tiny button red">Remove from Group</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="ui divider inverted"></div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" action="{{ url_for('leave_group', group_id=group.id) }}">
+            <button type="submit" class="ui red button">Leave Group</button>
+        </form>
+    </div>
+{% endblock %}
