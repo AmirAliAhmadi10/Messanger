@@ -8,3 +8,4 @@ Authlib
 Pillow
 Flask-Reuploaded
 gunicorn
+flask_moment
