@@ -14,7 +14,7 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_route
 
     photos = UploadSet('photos', IMAGES)
-    app.config['UPLOADED_PHOTOS_DEST'] = file_dir + '\\static\\profile_pics'
+    app.config['UPLOADED_PHOTOS_DEST'] = file_dir + '//static//profile_pics'
     configure_uploads(app, photos)
 
     db.init_app(app)
