@@ -2,6 +2,8 @@ from flask import Flask
 from flask_uploads import UploadSet, configure_uploads, IMAGES
 from extensions import db, login_manager, bcrypt, migrate, socketio, Moment
 import os
+from routes import *
+from models import User
 
 
 def create_app():
@@ -23,7 +25,7 @@ def create_app():
     socketio.init_app(app)
     moment = Moment(app)
 
-    from .models import User
+
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
@@ -33,8 +35,6 @@ def create_app():
 
     return app
 
-
-from .routes import app
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, port=5001)
