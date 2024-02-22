@@ -3,10 +3,10 @@ import os
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_user, login_required, logout_user, current_user
 from sqlalchemy.exc import IntegrityError
-from .app import create_app
-from .extensions import socketio, bcrypt
-from .models import *
-from .forms import *
+from app import create_app
+from extensions import socketio, bcrypt
+from models import *
+from forms import *
 from PIL import Image
 from datetime import datetime
 from sqlalchemy import or_
