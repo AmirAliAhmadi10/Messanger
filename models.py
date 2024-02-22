@@ -1,6 +1,6 @@
 from flask_login import UserMixin
 from sqlalchemy import Column, Integer, String, Text, Boolean
-from .extensions import db
+from extensions import db
 
 
 class User(db.Model, UserMixin):
