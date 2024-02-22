@@ -3,6 +3,7 @@ Flask-Login
 Flask-Bcrypt
 Flask-Migrate
 Flask-SocketIO
+Flask_wtf 
 WTForms
 Authlib
 Pillow
