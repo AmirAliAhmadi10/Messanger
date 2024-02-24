@@ -2,6 +2,7 @@ import secrets
 import os
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_user, login_required, logout_user, current_user
+from flask_socketio import emit, join_room
 from sqlalchemy.exc import IntegrityError
 from app import *
 from extensions import socketio, bcrypt
@@ -193,47 +194,16 @@ def chats():
     return render_template('chats.html', private_chats=private_chats, joined_groups=joined_groups)
 
 
-@app.route('/private_chat/<recipient_username>', methods=['GET', 'POST'])
+@app.route('/private_chat/<recipient_username>', methods=['GET'])
 @login_required
 def private_chat(recipient_username):
     # Get the recipient user by username
     recipient = User.query.filter_by(username=recipient_username).first()
 
-    if request.method == 'POST':
-        content = request.form.get('content')
-
-        # Check if a conversation between the users already exists
-        conversation = Conversation.query.filter(
-            (Conversation.user1_id == current_user.id) & (Conversation.user2_id == recipient.id) |
-            (Conversation.user2_id == current_user.id) & (Conversation.user1_id == recipient.id)
-        ).first()
-
-        if not conversation:
-            # Create a new conversation if one doesn't exist
-            conversation = Conversation(user1_id=current_user.id, user2_id=recipient.id)
-            db.session.add(conversation)
-            db.session.commit()
-
-        # Create a new message
-        new_message = Message(
-            content=content,
-            timestamp=datetime.utcnow(),
-            user_id=current_user.id,
-            conversation_id=conversation.id
-        )
-
-        db.session.add(new_message)
-        db.session.commit()
-
-        # Notify clients about the new private message
-        socketio.emit('new_private_message', {
-            'username': current_user.username,
-            'content': content,
-            'timestamp': str(datetime.utcnow()),
-            'recipient_username': recipient_username
-        }, room=f'private-{recipient_username}-{current_user.username}')
-
-        return redirect(url_for('private_chat', recipient_username=recipient_username))
+    conversation = Conversation.query.filter(
+        (Conversation.user1_id == current_user.id) & (Conversation.user2_id == recipient.id) |
+        (Conversation.user2_id == current_user.id) & (Conversation.user1_id == recipient.id)
+    ).first()
 
     # Query for private messages between the current user and the recipient
     private_messages = Message.query.filter(
@@ -256,7 +226,54 @@ def private_chat(recipient_username):
         for message in private_messages
     ]
     # Render the private chat template
-    return render_template('private_chat.html', form=MessageForm(), recipient=recipient, private_messages=private_messages_data)
+    return render_template('private_chat.html', form=MessageForm(), recipient=recipient, private_messages=private_messages_data, conversation=conversation)
+
+
+@socketio.on('new_private_message')
+def handle_new_private_message(messageData):
+    print('Received new_private_message event:', messageData)
+
+    # Extract data from the message
+    username = messageData['current_username']
+    content = messageData['content']
+    recipient_username = messageData['recipient_username']
+
+    # Get the recipient user by username
+    recipient = User.query.filter_by(username=recipient_username).first()
+
+    # Check if a conversation between the users already exists
+    conversation = Conversation.query.filter(
+        (Conversation.user1_id == current_user.id) & (Conversation.user2_id == recipient.id) |
+        (Conversation.user2_id == current_user.id) & (Conversation.user1_id == recipient.id)
+    ).first()
+
+    if not conversation:
+        # Create a new conversation if one doesn't exist
+        conversation = Conversation(user1_id=current_user.id, user2_id=recipient.id)
+        db.session.add(conversation)
+        db.session.commit()
+
+    # Create a new message
+    message = Message(
+        content=content,
+        timestamp=datetime.utcnow(),
+        user_id=current_user.id,
+        conversation_id=conversation.id
+    )
+
+    db.session.add(message)
+    db.session.commit()
+
+    # Notify clients about the new private message
+    emit('new_private_message', {
+        'id': message.id,
+        'current_username': current_user.username,
+        'content': content,
+        'timestamp': str(datetime.utcnow()),
+        'recipient_username': recipient_username,
+        'recipient_first_name': recipient.first_name,
+        'recipient_last_name': recipient.last_name
+    }, room=f'private-{conversation.id}')
 
 
 @app.route('/delete_message/<int:message_id>', methods=['DELETE'])
@@ -495,7 +512,7 @@ def delete_group(group_id):
         return 'Group {} not found.'.format(group_id)
 
 
-@app.route('/group_chat/<int:group_id>', methods=['GET', 'POST'])
+@app.route('/group_chat/<int:group_id>', methods=['GET'])
 @login_required
 def group_chat(group_id):
     group = Group.query.get_or_404(group_id)
@@ -508,38 +525,36 @@ def group_chat(group_id):
     group_messages = Message.query.filter_by(group_id=group.id).all()
     group_messages_as_dict = [message.as_dict() for message in group_messages]
 
-    if request.method == 'POST':
-        print("Received a POST request")
-        content = request.form.get('content')
-        sender_username = current_user.username
-        timestamp = datetime.utcnow()
-
-        print(f"Received message: {content}")
-
-        # Create a new message
-        message = Message(
-            content=content,
-            group_id=group.id,
-            user_id=current_user.id,
-            timestamp=timestamp
-        )
-
-        db.session.add(message)
-        db.session.commit()
-
-        print(f"Saved message to database: {message}")
-
-        # Broadcast the new group message to all connected clients
-        socketio.emit('new_group_message', {
-            'id': message.id,
-            'content': message.content,
-            'group_id': group.id,
-            'current_username': sender_username,
-            'timestamp': timestamp.isoformat()
-        }, room=f'group_{group.id}')
-        return redirect(url_for('group_chat', group_id=group_id))
-
     return render_template('group_chat.html', group=group, form=MessageForm(), group_messages=group_messages_as_dict)
+
+
+@socketio.on('new_group_message')
+def handle_new_group_message(messageData):
+    print('Received new_group_message event:', messageData)
+
+    # Extract data from the message
+    group_id = messageData['group_id']
+    content = messageData['content']
+
+    # Create a new message
+    message = Message(
+        content=content,
+        group_id=group_id,
+        user_id=current_user.id,
+        timestamp=datetime.utcnow()
+    )
+
+    db.session.add(message)
+    db.session.commit()
+
+    # Broadcast the new group message to all connected clients
+    emit('new_group_message', {
+        'id': message.id,
+        'content': content,
+        'group_id': group_id,
+        'current_username': current_user.username,
+        'timestamp': str(datetime.utcnow())
+    }, room=f'group-{group_id}')
 
 
 @app.route('/meeting/<room_name>', methods=['GET', 'POST'])
@@ -591,7 +606,6 @@ UrCF3GJUGKuGwB265BXD0LhO
 def start_meeting():
     if request.method == 'POST':
         room_name = request.form.get('room_name')
-        #session['room_name'] = room_name
         return redirect(url_for('meeting',room_name=room_name))
 
     # Render the start_meeting.html template for GET requests
@@ -601,3 +615,16 @@ def start_meeting():
 @app.errorhandler(404)
 def showError(error):
     return render_template('error_404.html') , 404
+
+@socketio.on('connect')
+def handle_connect():
+    # Get the current user's username
+    username = current_user.username
+    print(username,"connected")
+
+@socketio.on('join')
+def on_join(data):
+    room = data['room']
+    username = data['username']
+    join_room(room)
+    print(f'{username} joined room: {room}')
