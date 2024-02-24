@@ -25,7 +25,7 @@
 
             {{ recipient.first_name +" "+ recipient.last_name }}</h2>
 
-        <div class="ui feed" style="overflow-y:auto; max-height: 450px;">
+        <div id="ui feed" class="ui feed" style="overflow-y:auto; max-height: 450px;">
             <ul id="private-chat-messages" class="list-group">
                 <!-- Messages will be appended here dynamically -->
             </ul>
@@ -45,8 +45,18 @@
 
 
     <script>
+
+        function scrollToBottom() {
+            var messageContainer = document.getElementById('ui feed');
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             var socket = io.connect('//' + document.domain + ':' + location.port);
+
+            // Emit a join event when the user enters the chat
+            socket.emit('join', {room: 'private-{{ conversation.id }}',username: '{{ current_user.username }}'});
+
 
             // Function to add a new private message to the UI
             function addPrivateMessage(data) {
@@ -57,6 +67,7 @@
                 // Check if the message is from the current user
                 var isCurrentUser = data.current_username === '{{ current_user.username }}';
                 var displayName = isCurrentUser ? 'You' : data.recipient_first_name + ' ' + data.recipient_last_name;
+
                 newMessageElement.innerHTML = `
             <div class="ui secondary segment" style="margin-right:10px;">
                  <div class="item">
@@ -66,27 +77,24 @@
                            </div>
                            <div class="ui label right floated">
                                 <i class="clock icon"></i>
-                                ${moment(data.timestamp).calendar()}
+                                ${moment(Date(data.timestamp)).format('MMMM Do YYYY, h:mm a')}
                            </div>
 			               <div class="ui raised segment">
                                 <div class="description">
                                     <p>${data.content}</p>
                                 </div>
                            </div>
-
-
-
                            <br>
-
                            <div class="extra">
                             ${isCurrentUser ? `<button class="ui orange basic button mini right floated" onclick="deletePrivateMessage(${data.id})"><i class="trash icon"></i><span>Delete</span></button><br><br>` : ''}
-                            </div>
+                           </div>
                       </div>
                  </div>
-             </div>
+            </div>
             `;
 
                 document.getElementById('private-chat-messages').appendChild(newMessageElement);
+                scrollToBottom();
             }
 
             // Listen for new_private_message events and display the messages
@@ -101,15 +109,15 @@
                 var messageContent = document.querySelector('input[name="content"]').value;
 
                 var messageData = {
-                    username: '{{ current_user.username }}',
+                    current_username: '{{ current_user.username }}',
                     content: messageContent,
-                    recipient_username: '{{ recipient_username }}',
+                    recipient_username: '{{ recipient.username }}',
                     timestamp: new Date().toISOString()
                 };
 
                 socket.emit('new_private_message', messageData);
+                document.querySelector('input[name="content"]').value = '';
 
-                document.getElementById('private-chat-form').submit();
             }
 
             // Attach the sendPrivateMessage function to the form's submit event
@@ -123,7 +131,9 @@
             existingMessages.forEach(function (message) {
                 addPrivateMessage(message);
             });
+
         });
+
 
         function deletePrivateMessage(messageId) {
             // Make a request to the server to delete the message
@@ -149,6 +159,9 @@
                     console.error('Error:', error);
                 });
         }
+
+        window.onload = scrollToBottom;
+
     </script>
 {% endblock %}
 
