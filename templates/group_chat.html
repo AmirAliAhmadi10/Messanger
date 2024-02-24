@@ -32,7 +32,7 @@
     </div>
     <div class="ui container segment">
         <h2>Group Chat: {{ group.name }}</h2>
-        <div class="ui feed" style="overflow-y:auto; max-height: 450px;">
+        <div id="ui feed"  class="ui feed" style="overflow-y:auto; max-height: 450px;">
             <ul id="group-chat-messages" class="list-group">
                 <!-- Messages will be appended here dynamically -->
             </ul>
@@ -49,8 +49,14 @@
     </div>
 
     <script>
+        function scrollToBottom() {
+            var messageContainer = document.getElementById('ui feed');
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             var socket = io.connect('//' + document.domain + ':' + location.port);
+            socket.emit('join', {room: 'group-{{ group.id }}', username: '{{ current_user.username }}'});
 
             function addGroupMessage(data) {
                 var newMessageElement = document.createElement('li');
@@ -62,37 +68,31 @@
 
                 newMessageElement.innerHTML = `
             <div class="ui secondary segment" style="margin-right:10px;">
-                        <div class="item">
-                        <div class="content">
-
-
-
-                                <div class="ui label"><i class="address card outline icon"></i>
-
+                 <div class="item">
+                      <div class="content">
+                           <div class="ui label"><i class="address card outline icon"></i>
 			                    <a class="header">${displayName}</a> sent
-                                </div>
-
-                                <div class="ui label"><i class="clock icon"></i>${moment(data.timestamp).calendar()}</div>
-
-			               <div class="ui raised segment">
-                          <div class="description">
-
-                            <p>${data.content}</p>
-                          </div>
                            </div>
-
+                           <div class="ui label">
+                                <i class="clock icon"></i>
+                                ${moment(Date(data.timestamp)).format('MMMM Do YYYY, h:mm a')}
+                           </div>
+			               <div class="ui raised segment">
+                                <div class="description">
+                                    <p>${data.content}</p>
+                                </div>
+                           </div>
                            <br>
-
-                          <div class="extra">
-                            ${isCurrentUser ? `<button class="ui orange basic button mini right floated" onclick="deleteGroupMessage(${data.id})"><i class="trash icon"></i><span>Delete</span></button><br><br>` : ''}
-
-                          </div>
+                           <div class="extra">
+                                ${isCurrentUser ? `<button class="ui orange basic button mini right floated" onclick="deleteGroupMessage(${data.id})"><i class="trash icon"></i><span>Delete</span></button><br><br>` : ''}
+                           </div>
                         </div>
-                      </div>
-                    </div>
+                 </div>
+            </div>
             `;
 
                 document.getElementById('group-chat-messages').appendChild(newMessageElement);
+                scrollToBottom();
             }
 
             socket.on('new_group_message', function (data) {
@@ -105,15 +105,15 @@
                 var messageContent = document.querySelector('input[name="content"]').value;
 
                 var messageData = {
-                    username: '{{ current_user.username }}',
+                    current_username: '{{ current_user.username }}',
                     content: messageContent,
                     group_id: '{{ group.id }}',
                     timestamp: new Date().toISOString()
                 };
 
                 socket.emit('new_group_message', messageData);
+                document.querySelector('input[name="content"]').value = '';
 
-                document.getElementById('group-chat-form').submit();
             }
 
 
@@ -149,6 +149,8 @@
                     console.error('Error:', error);
                 });
         }
+
+        window.onload = scrollToBottom;
 
     </script>
 {% endblock %}
